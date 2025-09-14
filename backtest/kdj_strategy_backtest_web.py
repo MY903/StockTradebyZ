@@ -6,6 +6,9 @@ import os
 import pandas as pd
 import streamlit as st
 
+# 设置页面配置，增加宽度
+st.set_page_config(page_title="股票回测系统", layout="wide")
+
 # 确保中文显示正常
 import matplotlib.pyplot as plt
 plt.rcParams["font.family"] = ["SimHei", "Alibaba Sans", "Microsoft YaHei UI", "SimSun"]
@@ -51,6 +54,7 @@ with st.sidebar:
             param_min = param_schema.get('min', 0)
             param_max = param_schema.get('max', 100)
             param_step = param_schema.get('step', 0.1)
+            param_key = f"{strategy_name}_{param_name}"
             
             if param_type == 'float':
                 value = st.slider(
@@ -58,16 +62,20 @@ with st.sidebar:
                     min_value=param_min,
                     max_value=param_max,
                     value=param_default,
-                    step=param_step
+                    step=param_step,
+                    key=param_key
                 )
             elif param_type == 'int':
+                # 将步长值转换为整数类型，确保类型匹配
+                int_step = int(param_step) if param_step >= 1 else 1
                 value = st.slider(
                     f'{param_name}',
                     min_value=param_min,
                     max_value=param_max,
                     value=param_default,
-                    step=param_step,
-                    format="%d"
+                    step=int_step,
+                    format="%d",
+                    key=param_key
                 )
             else:
                 value = st.text_input(f'{param_name}', value=str(param_default))
@@ -102,7 +110,6 @@ with st.sidebar:
                     param_min = param_schema.get('min', 0)
                     param_max = param_schema.get('max', 100)
                     param_step = param_schema.get('step', 0.1)
-                    
                     param_key = f"{strategy_name}_{param_name}"
                     
                     if param_type == 'float':
@@ -115,12 +122,14 @@ with st.sidebar:
                             key=param_key
                         )
                     elif param_type == 'int':
+                        # 将步长值转换为整数类型，确保类型匹配
+                        int_step = int(param_step) if param_step >= 1 else 1
                         value = st.slider(
                             f'{param_name}',
                             min_value=param_min,
                             max_value=param_max,
                             value=param_default,
-                            step=param_step,
+                            step=int_step,
                             format="%d",
                             key=param_key
                         )
@@ -237,6 +246,9 @@ if run_backtest:
         win_count = len([t for t in sell_trades if t['position_profit'] > 0])
         win_rate = (win_count / len(sell_trades) * 100) if sell_trades else 0
         
+        # 计算总交易成本
+        total_trading_cost = sum(t['cost'] for t in trades) if trades else 0
+        
         # 显示绩效指标
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -248,7 +260,9 @@ if run_backtest:
         with col3:
             st.metric('交易次数', trade_count)
             st.metric('胜率', f'{win_rate:.2f}%')
-        
+            # 添加总交易成本指标
+            st.metric('总交易成本', f'{total_trading_cost:.2f}元')
+
         # 绘制回测结果图表
         st.subheader('资产曲线')
         try:
@@ -275,8 +289,8 @@ if run_backtest:
             trade_df = pd.DataFrame(trades)
             # 只显示重要的列
             if not trade_df.empty:
-                display_columns = ['date', 'type', 'price', 'quantity', 'cost', 'stock_value', 'total_asset', 'position_profit']
-        display_df = trade_df[display_columns].copy()
+                display_columns = ['date', 'type', 'price', 'quantity', 'cost', 'stock_value', 'position_profit','deal_reason','total_asset']
+                display_df = trade_df[display_columns].copy()
         
         # 格式化列 - 使用pandas的方法进行格式化
         for col in ['price', 'cost', 'stock_value', 'total_asset', 'position_profit']:
@@ -293,16 +307,22 @@ if run_backtest:
             'cost': '交易成本',
             'stock_value': '股票市值',
             'position_profit': '持仓盈亏',
-            'total_asset': '总资产'
-
+            'total_asset': '总资产',
+            'deal_reason': '交易原因'
         })
         
-        # 使用dataframe的style属性设置右对齐
-        st.dataframe(display_df.style.set_properties(**{
+        # 使用dataframe的style属性设置右对齐和处理长文本
+        styled_df = display_df.style.set_properties(**{
             'text-align': 'right'
-        }).set_properties(subset=['日期', '交易类型'], **{
+        }).set_properties(subset=['日期', '交易类型', '交易原因'], **{
             'text-align': 'left'
-        }))
+        }).set_properties(subset=['交易原因'], **{
+            'white-space': 'pre-wrap',
+            'word-break': 'break-word'
+        })
+        
+        # 设置列宽
+        st.dataframe(styled_df, use_container_width=True, height=600)
         
         # 显示策略说明
         if strategy_mode == '单一策略':
@@ -321,18 +341,46 @@ if run_backtest:
             st.markdown(f"- 初始资金：{initial_cash}元")
             st.markdown(f"- 仓位比例：{position_ratio*100}%")
             st.markdown(f"- 交易成本：佣金率0.03%（最低5元）、印花税0.1%（卖出时收取）、过户费0.002%")
+            st.markdown(f"- 总交易成本：{total_trading_cost:.2f}元")
         else:
-            st.markdown("## 组合策略说明")
-            st.markdown("组合策略将多个独立策略的信号进行逻辑组合：")
-            st.markdown("- **买入逻辑**：所有选中的策略都确认买入信号时才执行买入操作")
-            st.markdown("- **卖出逻辑**：任一选中的策略发出卖出信号时即执行卖出操作")
-            st.markdown("- **优势**：通过多策略组合可以降低单一策略的局限性，提高信号质量")
+            st.markdown("### 资金管理")
+            st.markdown(f"- 初始资金：{initial_cash}元")
+            st.markdown(f"- 仓位比例：{position_ratio*100}%")
+            st.markdown(f"- 交易成本：佣金率0.03%（最低5元）、印花税0.1%（卖出时收取）、过户费0.002%")
+            st.markdown(f"- 总交易成本：{total_trading_cost:.2f}元")
             
             # 列出所有选中的策略及其详细说明
             st.markdown("### 选中的策略详情")
             for s in selected_strategies:
                 st.markdown(f"#### {strategies_info[s]['display_name']}")
                 st.markdown(f"{strategies_info[s]['description']}")
+                
+                # 获取并显示每个策略的详细参数设置
+                strategy_metadata = StrategyManager.get_strategy_metadata(s)
+                if strategy_metadata.params_schema:
+                    st.markdown("**参数配置**：")
+                    for param_name, param_schema in strategy_metadata.params_schema.items():
+                        param_key = f"{s}_{param_name}"
+                        param_value = strategy_params.get(param_key, param_schema.get('default', '未设置'))
+                        param_desc = param_schema.get('description', '')
+                        if param_desc:
+                            st.markdown(f"- **{param_name}**: {param_value} ({param_desc})")
+                        else:
+                            st.markdown(f"- **{param_name}**: {param_value}")
+                
+                # 添加各策略的详细解读
+                if s == 'basic_kdj':
+                    st.markdown("**核心逻辑**：基于KDJ指标的金叉死叉信号进行买卖决策")
+                    st.markdown("**买入信号**：当K线上穿D线（金叉）时产生买入信号")
+                    st.markdown("**卖出信号**：当K线下穿D线（死叉）时产生卖出信号")
+                elif s == 'sma20_strategy':
+                    st.markdown("**核心逻辑**：基于价格与20日均线的位置关系进行买卖决策")
+                    st.markdown("**买入信号**：当价格上穿20日均线时产生买入信号")
+                    st.markdown("**卖出信号**：当价格下穿20日均线时产生卖出信号")
+                elif s == 'volume_strategy':
+                    st.markdown("**核心逻辑**：基于成交量的变化识别主力资金动向")
+                    st.markdown("**买入信号**：成交量显著放大且价格上涨时产生买入信号")
+                    st.markdown("**卖出信号**：成交量显著放大但价格下跌时产生卖出信号")
                 
             st.markdown("### 资金管理")
             st.markdown(f"- 初始资金：{initial_cash}元")

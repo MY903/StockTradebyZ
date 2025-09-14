@@ -110,7 +110,7 @@ class StopLossStrategy(BaseStrategy):
                 # 如果触发任何一个止损条件，卖出全部持仓
                 if stop_loss_condition or time_stop_condition:
                     # 记录卖出原因
-                    sell_reason = "固定止损" if stop_loss_condition else "时间止损"
+                    deal_reason = "固定止损" if stop_loss_condition else "时间止损"
                     
                     # 计算交易成本
                     total_cost, fee, stamp_duty = self.calculate_trading_cost(row['close'], self.position, is_buy=False)
@@ -132,7 +132,7 @@ class StopLossStrategy(BaseStrategy):
                         'stock_value': 0,
                         'total_asset': self.current_cash + net_revenue,
                         'position_profit': position_profit,
-                        'sell_reason': sell_reason  # 添加卖出原因
+                        'deal_reason': deal_reason  # 添加交易原因
                     }
                     self.trades.append(trade_record)
                     

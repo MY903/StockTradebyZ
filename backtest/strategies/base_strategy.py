@@ -11,7 +11,10 @@ class BaseStrategy(BacktestBase):
                  initial_cash: float = 100000, position_ratio: float = 0.5):
         super().__init__(stock_code, data_dir, start_date, end_date, initial_cash)
         self.position_ratio = position_ratio  # 仓位比例
-        self.avg_cost = 0  # 新增：初始化平均成本
+        self.avg_cost = 0  # 初始化平均成本
+        self.strategy_name = "基础策略"  # 策略名称
+        self.strategy_params = {}  # 策略参数
+        self.deal_reason = ""  # 交易原因
     
     @abstractmethod
     def calculate_indicators(self):
@@ -31,7 +34,7 @@ class BaseStrategy(BacktestBase):
             return new_price
         else:
             # 如果有持仓，计算加权平均成本
-            total_cost_before = self.position * self.avg_cost  # 修改：直接使用self.avg_cost
+            total_cost_before = self.position * self.avg_cost
             total_cost_new = new_quantity * new_price
             total_quantity = self.position + new_quantity
             
@@ -52,6 +55,7 @@ class BaseStrategy(BacktestBase):
         self.equity_curve = []
         self.current_equity = self.initial_cash
         self.avg_cost = 0  # 重置平均成本
+        self.deal_reason = ""
         
         # 确保指标已计算
         self.generate_signals()
@@ -85,6 +89,9 @@ class BaseStrategy(BacktestBase):
                         avg_cost = self.calculate_average_cost(buy_quantity, row['close'])
                         position_profit = (row['close'] - avg_cost) * (self.position + buy_quantity)
                         
+                        # 设置买入原因
+                        self.deal_reason = self._generate_buy_reason(row)
+                        
                         # 记录交易
                         self.trades.append({
                             'date': index,
@@ -94,7 +101,8 @@ class BaseStrategy(BacktestBase):
                             'cost': total_cost,
                             'stock_value': stock_value,
                             'total_asset': self.current_cash - total_required + stock_value,
-                            'position_profit': position_profit
+                            'position_profit': position_profit,
+                            'deal_reason': self.deal_reason
                         })
                         
                         # 更新持仓和现金
@@ -103,6 +111,9 @@ class BaseStrategy(BacktestBase):
             elif row['signal'] == -1 and self.position > 0:
                 # 卖出全部持仓
                 sell_quantity = self.position
+
+                # 设置卖出原因
+                self.deal_reason = self._generate_sell_reason(row)
                 
                 # 计算交易成本
                 total_cost, fee, stamp_duty = self.calculate_trading_cost(row['close'], sell_quantity, is_buy=False)
@@ -111,7 +122,7 @@ class BaseStrategy(BacktestBase):
                 revenue = sell_quantity * row['close']
                 net_revenue = revenue - total_cost
                 
-                # 计算当前持仓市值和盈亏 - 修改：直接使用self.avg_cost
+                # 计算当前持仓市值和盈亏
                 position_profit = (row['close'] - self.avg_cost) * sell_quantity if self.position > 0 else 0
                 
                 # 记录交易
@@ -123,7 +134,8 @@ class BaseStrategy(BacktestBase):
                     'cost': total_cost,
                     'stock_value': 0,
                     'total_asset': self.current_cash + net_revenue,
-                    'position_profit': position_profit
+                    'position_profit': position_profit,
+                    'deal_reason': self.deal_reason
                 })
                 
                 # 更新持仓和现金
@@ -139,3 +151,25 @@ class BaseStrategy(BacktestBase):
             'initial_equity': self.initial_cash,
             'return_rate': (self.current_equity - self.initial_cash) / self.initial_cash
         }
+        
+    def _generate_buy_reason(self, row):
+        """生成买入原因"""
+        params_str = ", ".join([f"{k}={v}" for k, v in self.strategy_params.items()])
+        if hasattr(self, 'data') and 'K' in self.data.columns and 'D' in self.data.columns:
+            current_k = row['K']
+            current_d = row['D']
+            prev_k = self.data['K'].shift(1).loc[row.name] if row.name in self.data.index[1:] else 0
+            prev_d = self.data['D'].shift(1).loc[row.name] if row.name in self.data.index[1:] else 0
+            return f"{self.strategy_name}买入信号 (参数: {params_str})：K({current_k:.2f})上穿D({current_d:.2f})"
+        return f"{self.strategy_name}买入信号 (参数: {params_str})"
+    
+    def _generate_sell_reason(self, row):
+        """生成卖出原因"""
+        params_str = ", ".join([f"{k}={v}" for k, v in self.strategy_params.items()])
+        if hasattr(self, 'data') and 'K' in self.data.columns and 'D' in self.data.columns:
+            current_k = row['K']
+            current_d = row['D']
+            prev_k = self.data['K'].shift(1).loc[row.name] if row.name in self.data.index[1:] else 0
+            prev_d = self.data['D'].shift(1).loc[row.name] if row.name in self.data.index[1:] else 0
+            return f"{self.strategy_name}卖出信号 (参数: {params_str})：K({current_k:.2f})下穿D({current_d:.2f})"
+        return f"{self.strategy_name}卖出信号 (参数: {params_str})"

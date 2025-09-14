@@ -21,6 +21,7 @@ class CombinedStrategy(BaseStrategy):
         self.selected_strategies = selected_strategies or ['basic_kdj']
         self.strategy_params = strategy_params or {}
         self.sub_strategies = []
+        self.strategy_name = "组合策略"
     
     def initialize_sub_strategies(self):
         """初始化所有选择的子策略"""
@@ -71,8 +72,9 @@ class CombinedStrategy(BaseStrategy):
         if not self.sub_strategies:
             self.initialize_sub_strategies()
         
-        # 初始化信号列
+        # 初始化信号列和触发策略记录列
         self.data['signal'] = 0  # 0: 无操作, 1: 买入, -1: 卖出
+        self.data['trigger_strategies'] = ''  # 记录触发买卖的策略
         
         # 为每个子策略创建单独的信号列
         for strategy_name, sub_strategy in self.sub_strategies:
@@ -99,6 +101,9 @@ class CombinedStrategy(BaseStrategy):
                 combined_buy &= cond
             
             self.data.loc[combined_buy, 'signal'] = 1
+            # 记录触发买入的策略
+            trigger_strategies = ", ".join(self.selected_strategies)
+            self.data.loc[combined_buy, 'trigger_strategies'] = trigger_strategies
         
         # 计算卖出信号：任一子策略发出卖出信号
         sell_conditions = []
@@ -115,6 +120,70 @@ class CombinedStrategy(BaseStrategy):
                 combined_sell |= cond
             
             self.data.loc[combined_sell, 'signal'] = -1
+            # 记录触发卖出的策略
+            for i, (strategy_name, _) in enumerate(self.sub_strategies):
+                signal_col = f"signal_{strategy_name}"
+                if signal_col in self.data.columns:
+                    # 对于每个触发卖出的策略，更新trigger_strategies
+                    mask = (self.data[signal_col] == -1) & (self.data['signal'] == -1)
+                    existing_triggers = self.data.loc[mask, 'trigger_strategies']
+                    self.data.loc[mask, 'trigger_strategies'] = existing_triggers.apply(
+                        lambda x: f"{x}, {strategy_name}" if x else strategy_name
+                    )
+    
+    def _generate_buy_reason(self, row):
+        """生成组合策略的买入原因"""
+        # 获取触发买入的策略
+        trigger_strategies = row.get('trigger_strategies', '').split(', ')
+        if not trigger_strategies or trigger_strategies == ['']:
+            trigger_strategies = self.selected_strategies
+            
+        # 构建详细的买入原因
+        reasons = []
+        for strategy_name in trigger_strategies:
+            # 查找对应的子策略实例
+            sub_strategy = next((s for n, s in self.sub_strategies if n == strategy_name), None)
+            if sub_strategy:
+                # 获取子策略的参数
+                params = self.strategy_params.get(strategy_name, {})
+                params_str = ", ".join([f"{k}={v}" for k, v in params.items()])
+                # 获取策略的显示名称
+                try:
+                    metadata = StrategyManager.get_strategy_metadata(strategy_name)
+                    display_name = metadata.display_name
+                except:
+                    display_name = strategy_name
+                
+                reasons.append(f"{display_name} (参数: {params_str})")
+        
+        return f"组合策略买入信号：所有[{', '.join(reasons)}]策略均发出买入信号"
+    
+    def _generate_sell_reason(self, row):
+        """生成组合策略的卖出原因"""
+        # 获取触发卖出的策略
+        trigger_strategies = row.get('trigger_strategies', '').split(', ')
+        if not trigger_strategies or trigger_strategies == ['']:
+            trigger_strategies = self.selected_strategies[:1]  # 默认取第一个策略
+            
+        # 构建详细的卖出原因
+        reasons = []
+        for strategy_name in trigger_strategies:
+            # 查找对应的子策略实例
+            sub_strategy = next((s for n, s in self.sub_strategies if n == strategy_name), None)
+            if sub_strategy:
+                # 获取子策略的参数
+                params = self.strategy_params.get(strategy_name, {})
+                params_str = ", ".join([f"{k}={v}" for k, v in params.items()])
+                # 获取策略的显示名称
+                try:
+                    metadata = StrategyManager.get_strategy_metadata(strategy_name)
+                    display_name = metadata.display_name
+                except:
+                    display_name = strategy_name
+                
+                reasons.append(f"{display_name} (参数: {params_str})")
+        
+        return f"组合策略卖出信号：[{', '.join(reasons)}]策略发出卖出信号"
 
 # 为了向后兼容，保留原有的组合策略创建函数
 def create_combined_strategy(selected_strategies, **kwargs):
