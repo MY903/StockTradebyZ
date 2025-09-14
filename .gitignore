@@ -1,0 +1,24 @@
+# 忽略根目录的data文件夹
+/data/
+
+# 忽略任意目录下的results文件夹
+**/results/
+**/__pycache__/
+
+# 忽略各种日志文件
+# 忽略所有.log文件
+*.log
+
+# 忽略带日期的日志文件（如app-2023-10-01.log）
+*.log.*
+
+# 忽略日志目录（通常包含多种日志文件）
+logs/
+**/logs/
+
+# 忽略特定格式的日志（如nginx风格的access.log和error.log）
+access.log
+error.log
+
+# 忽略以.log结尾的隐藏文件
+.*.log
