@@ -150,7 +150,8 @@ with st.sidebar:
     
     # 初始资金和仓位比例
     initial_cash = st.number_input('初始资金', min_value=10000, max_value=1000000, value=100000, step=10000)
-    position_ratio = st.slider('仓位比例', min_value=0.1, max_value=1.0, value=0.5, step=0.1)
+    position_ratio = st.slider('买入仓位比例', min_value=0.1, max_value=1.0, value=0.5, step=0.1)
+    sell_ratio = st.slider('卖出仓位比例', min_value=0.1, max_value=1.0, value=1.0, step=0.1)
     
     # 回测按钮
     run_backtest = st.button('运行回测')
@@ -168,6 +169,7 @@ if run_backtest:
                 end_date=str(end_date),
                 initial_cash=initial_cash,
                 position_ratio=position_ratio,
+                sell_ratio=sell_ratio,
                 **strategy_params
             )
         else:
@@ -179,6 +181,7 @@ if run_backtest:
                 end_date=str(end_date),
                 initial_cash=initial_cash,
                 position_ratio=position_ratio,
+                sell_ratio=sell_ratio,
                 **strategy_params
             )
         

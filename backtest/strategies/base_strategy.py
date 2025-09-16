@@ -8,9 +8,10 @@ class BaseStrategy(BacktestBase):
     """交易策略基础类"""
     def __init__(self, stock_code: str, data_dir: str = 'data', 
                  start_date: str = None, end_date: str = None, 
-                 initial_cash: float = 100000, position_ratio: float = 0.5):
+                 initial_cash: float = 100000, position_ratio: float = 0.5, sell_ratio: float = 1.0):
         super().__init__(stock_code, data_dir, start_date, end_date, initial_cash)
         self.position_ratio = position_ratio  # 仓位比例
+        self.sell_ratio = sell_ratio  # 卖出比例
         self.avg_cost = 0  # 初始化平均成本
         self.strategy_name = "基础策略"  # 策略名称
         self.strategy_params = {}  # 策略参数
@@ -109,8 +110,15 @@ class BaseStrategy(BacktestBase):
                         self.position += buy_quantity
                         self.current_cash -= total_required
             elif row['signal'] == -1 and self.position > 0:
-                # 卖出全部持仓
-                sell_quantity = self.position
+                # 修改为按照卖出比例卖出持仓
+                sell_quantity = int(self.position * self.sell_ratio)
+                
+                # 确保卖出数量为手数的整数倍
+                sell_quantity = (sell_quantity // self.lot_size) * self.lot_size
+                
+                # 确保至少卖出1手
+                if sell_quantity < self.lot_size:
+                    sell_quantity = min(self.lot_size, self.position)
 
                 # 设置卖出原因
                 self.deal_reason = self._generate_sell_reason(row)
@@ -132,17 +140,18 @@ class BaseStrategy(BacktestBase):
                     'quantity': sell_quantity,
                     'type': 'sell',
                     'cost': total_cost,
-                    'stock_value': 0,
-                    'total_asset': self.current_cash + net_revenue,
+                    'stock_value': (self.position - sell_quantity) * row['close'],
+                    'total_asset': self.current_cash + net_revenue + (self.position - sell_quantity) * row['close'],
                     'position_profit': position_profit,
                     'deal_reason': self.deal_reason
                 })
                 
                 # 更新持仓和现金
-                self.position = 0
+                self.position -= sell_quantity
                 self.current_cash += net_revenue
-                # 卖出后重置平均成本
-                self.avg_cost = 0
+                # 只有全部卖出后才重置平均成本
+                if self.position == 0:
+                    self.avg_cost = 0
 
         return {
             'trades': self.trades,

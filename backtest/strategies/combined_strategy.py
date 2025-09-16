@@ -14,8 +14,8 @@ combined_metadata = StrategyMetadata(
 class CombinedStrategy(BaseStrategy):
     """组合多个策略的策略类"""
     def __init__(self, stock_code, data_dir='data', start_date=None, end_date=None,
-                 initial_cash=100000, position_ratio=0.5, selected_strategies: List[str] = None, strategy_params: Dict[str, Dict] = None):
-        super().__init__(stock_code, data_dir, start_date, end_date, initial_cash, position_ratio)
+                 initial_cash=100000, position_ratio=0.5, sell_ratio=1.0, selected_strategies: List[str] = None, strategy_params: Dict[str, Dict] = None):
+        super().__init__(stock_code, data_dir, start_date, end_date, initial_cash, position_ratio, sell_ratio)
         
         # 初始化子策略列表
         self.selected_strategies = selected_strategies or ['basic_kdj']
@@ -38,6 +38,7 @@ class CombinedStrategy(BaseStrategy):
                 end_date=self.end_date,
                 initial_cash=self.initial_cash,
                 position_ratio=self.position_ratio,
+                sell_ratio=self.sell_ratio,
                 **params
             )
             

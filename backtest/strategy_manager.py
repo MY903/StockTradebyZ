@@ -60,9 +60,16 @@ class StrategyManager:
     
     @classmethod
     def create_strategy(cls, name: str, **kwargs) -> Any:
-        """创建策略实例"""
+        """创建策略实例，自动过滤不被策略类接受的参数"""
         strategy_class = cls.get_strategy(name)
-        return strategy_class(**kwargs)
+        
+        # 获取策略类构造函数接受的参数名
+        import inspect
+        sig = inspect.signature(strategy_class.__init__)
+        # 过滤出策略类接受的参数
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
+        
+        return strategy_class(**filtered_kwargs)
     
     @classmethod
     def load_strategies_from_directory(cls, directory: str):
