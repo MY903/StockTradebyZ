@@ -56,31 +56,45 @@ def load_first_round_results(result_file: Path) -> Set[str]:
 
 def extract_latest_trade_date(result_file: Path) -> str:
     """从日志文件中提取最近的交易日期，如果失败则使用默认日期"""
-    # 强制使用已知的正确交易日期 20250912
-    latest_date = "20250912"
+    latest_date = None
     
     try:
         with open(result_file, 'r', encoding='utf-8') as f:
             for line in f:
-                # 精确查找包含交易日信息的行，确保不会误提其他日期
+                # 查找包含交易日信息的行
                 if "交易日: " in line:
                     # 提取日期格式 YYYY-MM-DD
                     date_match = re.search(r'交易日: (\d{4}-\d{2}-\d{2})', line)
                     if date_match:
                         date_str = date_match.group(1)
-                        # 转换为YYYYMMDD格式
-                        extracted_date = date_str.replace('-', '')
-                        logger.info(f"从日志中提取到交易日期: {extracted_date}")
-                        # 确保提取的是正确的日期
-                        if extracted_date == "20250912":
-                            latest_date = extracted_date
-                        # 找到第一个交易日后就返回
-                        return latest_date
-    except Exception as e:
-        logger.error("提取交易日期失败: %s", e)
+                        # 更新为找到的最新日期
+                        latest_date = date_str.replace('-', '')
         
-    logger.warning(f"使用默认交易日期: {latest_date}")
-    return latest_date
+        if latest_date:
+            logger.info(f"从日志中提取到交易日期: {latest_date}")
+            return latest_date
+        else:
+            # 如果没有从日志中提取到，使用当前日期的前一个交易日逻辑
+            logger.warning("无法从日志中提取交易日期，使用默认逻辑")
+            # 获取当前日期
+            today = dt.date.today()
+            # 如果是周末，回滚到周五
+            if today.weekday() == 5:  # 周六
+                latest_date = (today - dt.timedelta(days=1)).strftime('%Y%m%d')
+            elif today.weekday() == 6:  # 周日
+                latest_date = (today - dt.timedelta(days=2)).strftime('%Y%m%d')
+            else:
+                latest_date = today.strftime('%Y%m%d')
+            
+            logger.warning(f"使用计算的默认交易日期: {latest_date}")
+            return latest_date
+    except Exception as e:
+        logger.error(f"提取交易日期失败: {e}")
+        # 出错时使用当前日期
+        today = dt.date.today()
+        latest_date = today.strftime('%Y%m%d')
+        logger.warning(f"使用当前日期作为默认值: {latest_date}")
+        return latest_date
 
 def get_stock_data(pro, codes: Set[str], trade_date: str) -> Dict[str, Dict]:
     """使用Tushare API获取股票数据，按照接口要求使用daily_basic"""
@@ -285,9 +299,26 @@ def main():
     logger.info("- 流通市值在 %.2f - %.2f 亿元之间", args.min_market_cap, args.max_market_cap)
     logger.info("筛选结果: %s", ", ".join(filtered_stocks) if filtered_stocks else "无符合条件股票")
     
+    # 输出更详细的核心指标信息
+    if filtered_stocks:
+        logger.info("")
+        logger.info("============== 详细核心指标 ==============")
+        logger.info("股票代码, 收盘价(元), 换手率(%%), 流通市值(亿元)")
+        
+        # 对结果按某种指标排序（这里按市值排序）
+        sorted_stocks = sorted(filtered_stocks, key=lambda x: stock_data[x].get('circ_mv', 0) / 10000)
+        
+        for code in sorted_stocks:
+            data = stock_data[code]
+            price = data.get('close', 0)
+            turnover = data.get('turnover_rate', 0)
+            market_cap = data.get('circ_mv', 0) / 10000  # 转换为亿元
+            logger.info(f"{code}, {price:.2f}, {turnover:.2f}, {market_cap:.2f}")
+    
     # 保存结果到文件，方便后续使用
     with open("second_filter_results.json", "w", encoding="utf-8") as f:
-        json.dump({
+        # 构建包含详细信息的结果
+        detailed_results = {
             "date": trade_date,
             "conditions": {
                 "max_price": args.max_price,
@@ -296,8 +327,25 @@ def main():
                 "min_market_cap": args.min_market_cap,
                 "max_market_cap": args.max_market_cap
             },
-            "stocks": filtered_stocks
-        }, f, ensure_ascii=False, indent=2)
+            "summary": {
+                "total_stocks": len(first_round_stocks),
+                "filtered_stocks_count": len(filtered_stocks),
+                "pass_rate": f"{len(filtered_stocks)/len(first_round_stocks)*100:.2f}%" if first_round_stocks else "0%"
+            },
+            "stocks": filtered_stocks,
+            "detailed_stock_data": {}
+        }
+        
+        # 添加每只股票的详细数据
+        for code in filtered_stocks:
+            data = stock_data[code]
+            detailed_results["detailed_stock_data"][code] = {
+                "close": data.get('close', None),
+                "turnover_rate": data.get('turnover_rate', None),
+                "market_cap": data.get('circ_mv', None) / 10000 if data.get('circ_mv') else None
+            }
+        
+        json.dump(detailed_results, f, ensure_ascii=False, indent=2)
     
     logger.info("结果已保存到 second_filter_results.json")
 

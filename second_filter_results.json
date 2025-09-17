@@ -1,5 +1,5 @@
 {
-  "date": "20250912",
+  "date": "20250915",
   "conditions": {
     "max_price": 30.0,
     "min_turnover": 3.0,
@@ -7,16 +7,163 @@
     "min_market_cap": 20.0,
     "max_market_cap": 100.0
   },
+  "summary": {
+    "total_stocks": 103,
+    "filtered_stocks_count": 25,
+    "pass_rate": "24.27%"
+  },
   "stocks": [
+    "002109",
+    "002347",
+    "002598",
     "002824",
     "002953",
     "300091",
+    "300501",
+    "300700",
     "300752",
+    "300797",
+    "300967",
+    "300994",
+    "600152",
     "600280",
+    "600397",
     "600706",
     "600833",
+    "603212",
+    "603215",
+    "603637",
+    "603686",
+    "605100",
+    "688085",
     "688299",
-    "831305",
-    "835237"
-  ]
+    "831305"
+  ],
+  "detailed_stock_data": {
+    "002109": {
+      "close": 4.06,
+      "turnover_rate": 4.0617,
+      "market_cap": 51.816555949999994
+    },
+    "002347": {
+      "close": 7.59,
+      "turnover_rate": 6.378,
+      "market_cap": 37.447762190000006
+    },
+    "002598": {
+      "close": 12.55,
+      "turnover_rate": 6.2025,
+      "market_cap": 35.40160124
+    },
+    "002824": {
+      "close": 19.43,
+      "turnover_rate": 3.298,
+      "market_cap": 36.7530075
+    },
+    "002953": {
+      "close": 12.73,
+      "turnover_rate": 4.482,
+      "market_cap": 34.5794577
+    },
+    "300091": {
+      "close": 3.0,
+      "turnover_rate": 3.6271,
+      "market_cap": 44.28099828
+    },
+    "300501": {
+      "close": 16.95,
+      "turnover_rate": 4.7923,
+      "market_cap": 21.22161832
+    },
+    "300700": {
+      "close": 12.54,
+      "turnover_rate": 3.5876,
+      "market_cap": 33.81129464
+    },
+    "300752": {
+      "close": 23.34,
+      "turnover_rate": 5.212,
+      "market_cap": 36.70554597
+    },
+    "300797": {
+      "close": 18.24,
+      "turnover_rate": 5.8762,
+      "market_cap": 69.05677954
+    },
+    "300967": {
+      "close": 25.06,
+      "turnover_rate": 11.6215,
+      "market_cap": 31.27266019
+    },
+    "300994": {
+      "close": 18.66,
+      "turnover_rate": 3.8571,
+      "market_cap": 21.7695024
+    },
+    "600152": {
+      "close": 6.99,
+      "turnover_rate": 6.782,
+      "market_cap": 36.98264831
+    },
+    "600280": {
+      "close": 3.62,
+      "turnover_rate": 3.2535,
+      "market_cap": 40.84571933
+    },
+    "600397": {
+      "close": 7.56,
+      "turnover_rate": 4.0131,
+      "market_cap": 74.84096708
+    },
+    "600706": {
+      "close": 11.05,
+      "turnover_rate": 3.7231,
+      "market_cap": 28.07033544
+    },
+    "600833": {
+      "close": 13.85,
+      "turnover_rate": 5.4653,
+      "market_cap": 30.89745906
+    },
+    "603212": {
+      "close": 12.3,
+      "turnover_rate": 3.5445,
+      "market_cap": 53.81134823
+    },
+    "603215": {
+      "close": 20.59,
+      "turnover_rate": 5.4495,
+      "market_cap": 38.55032344
+    },
+    "603637": {
+      "close": 11.88,
+      "turnover_rate": 4.9319,
+      "market_cap": 28.35588219
+    },
+    "603686": {
+      "close": 18.53,
+      "turnover_rate": 4.7007,
+      "market_cap": 76.97925386
+    },
+    "605100": {
+      "close": 26.73,
+      "turnover_rate": 5.9512,
+      "market_cap": 45.4228236
+    },
+    "688085": {
+      "close": 20.0,
+      "turnover_rate": 5.0309,
+      "market_cap": 62.756741000000005
+    },
+    "688299": {
+      "close": 22.73,
+      "turnover_rate": 8.3612,
+      "market_cap": 65.32440481
+    },
+    "831305": {
+      "close": 22.99,
+      "turnover_rate": 3.5046,
+      "market_cap": 25.30974985
+    }
+  }
 }
